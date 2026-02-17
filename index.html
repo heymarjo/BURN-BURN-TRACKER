@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BURNR — Retro TV Burn Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Silkscreen:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+:root {
+  --crt-orange: #ff7700;
+  --crt-amber: #ffcc00;
+  --crt-green: #44ff44;
+  --screen-black: #0c0c0c;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: #ffffff;
+  color: #0a0a0a;
+  font-family: 'VT323', monospace;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* TOPBAR */
+.topbar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 24px;
+  gap: 14px;
+  border-bottom: 1px solid #eee;
+}
+.logo-mark {
+  background: #0a0a0a;
+  padding: 5px 14px;
+}
+.logo-mark span {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  color: white;
+  letter-spacing: 4px;
+}
+.topbar-title {
+  font-family: 'Silkscreen', monospace;
+  font-size: 14px;
+  color: #999;
+}
+
+/* TV AREA */
+.tv-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px 40px;
+  width: 100%;
+  /* perspective removed for click fix */
+}
+
+.tv-3d {
+  width: 100%;
+  max-width: 920px;
+  position: relative;
+  /* transform removed for click fix */
+  /* preserve-3d removed for click fix */
+}
+
+.tv-body {
+  display: grid;
+  grid-template-columns: 1fr 170px;
+  background: linear-gradient(180deg, #b8c8d0 0%, #9eb0b8 35%, #8a9ca6 70%, #768890 100%);
+  border-radius: 24px 24px 16px 16px;
+  padding: 22px;
+  gap: 18px;
+  position: relative;
+  box-shadow:
+    0 45px 90px rgba(0,0,0,0.25),
+    0 18px 35px rgba(0,0,0,0.15),
+    0 8px 0 #5f6e78,
+    0 10px 0 #4f5e68,
+    0 12px 0 #3f4e58,
+    inset 0 2px 0 rgba(255,255,255,0.4),
+    inset 4px 0 10px rgba(0,0,0,0.08),
+    inset -4px 0 10px rgba(0,0,0,0.08),
+    inset 0 10px 20px rgba(255,255,255,0.15);
+}
+
+.tv-body::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 20px; right: 20px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), rgba(255,255,255,0.55), rgba(255,255,255,0.4), transparent);
+  border-radius: 0 0 8px 8px;
+  z-index: 2;
+}
+
+.tv-body::after {
+  content: 'BURNR';
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-70%);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 11px;
+  letter-spacing: 5px;
+  color: rgba(0,0,0,0.15);
+  z-index: 2;
+}
+
+.tv-feet {
+  position: absolute;
+  bottom: -18px;
+  left: 0; right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 50px;
+  pointer-events: none;
+  z-index: -1;
+}
+.tv-foot {
+  width: 55px;
+  height: 18px;
+  background: linear-gradient(180deg, #5f6e78 0%, #3f4e58 60%, #2f3e48 100%);
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.screen-outer {
+  background: linear-gradient(145deg, #3a3632 0%, #2a2622 40%, #1a1612 100%);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow:
+    inset 0 4px 12px rgba(0,0,0,0.6),
+    inset 0 -2px 4px rgba(255,255,255,0.05),
+    0 1px 0 rgba(255,255,255,0.08);
+  position: relative;
+}
+
+.screen-glass {
+  width: 100%;
+  aspect-ratio: 4/3;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  background: var(--screen-black);
+  box-shadow:
+    inset 0 0 100px rgba(0,0,0,0.7),
+    inset 0 0 30px rgba(0,0,0,0.5);
+}
+
+.fx-scanlines, .fx-rgb, .fx-vignette, .fx-reflection, .fx-roll, .fx-glow, .fx-flicker {
+  position: absolute; inset: 0;
+  pointer-events: none; z-index: 10;
+}
+
+.fx-scanlines {
+  background: repeating-linear-gradient(0deg, transparent 0px, transparent 1px, rgba(0,0,0,0.25) 1px, rgba(0,0,0,0.25) 2px);
+}
+.fx-rgb {
+  background: repeating-linear-gradient(90deg, rgba(255,0,0,0.04) 0px, rgba(0,255,0,0.04) 1px, rgba(0,100,255,0.04) 2px, transparent 3px);
+}
+.fx-vignette {
+  background: radial-gradient(ellipse 75% 70% at center, transparent 55%, rgba(0,0,0,0.55) 100%);
+}
+.fx-reflection {
+  top: -10%; left: -10%;
+  width: 70%; height: 60%;
+  background: radial-gradient(ellipse at 40% 40%, rgba(255,255,255,0.07) 0%, transparent 60%);
+  transform: rotate(-5deg);
+  z-index: 13;
+}
+.fx-roll {
+  height: 4px;
+  background: linear-gradient(180deg, transparent, rgba(255,255,255,0.06), transparent);
+  animation: rollBar 7s linear infinite;
+}
+@keyframes rollBar { 0% { top: -4px; } 100% { top: 100%; } }
+.fx-glow { box-shadow: inset 0 0 50px rgba(50,200,50,0.025); z-index: 7; }
+.fx-flicker {
+  animation: ambientFlicker 0.1s infinite;
+  background: rgba(255,255,255,0.015);
+}
+@keyframes ambientFlicker {
+  0% { opacity: 0.35; } 25% { opacity: 0; } 50% { opacity: 0.25; } 75% { opacity: 0; } 100% { opacity: 0.15; }
+}
+
+.fx-glitch {
+  position: absolute; inset: 0;
+  pointer-events: none; z-index: 18;
+  opacity: 0;
+}
+.fx-glitch.active { opacity: 1; }
+
+.glitch-bar {
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  background: rgba(255,255,255,0.18);
+  box-shadow: 0 0 5px rgba(255,255,255,0.12);
+}
+
+.static-layer, .static-partial {
+  position: absolute; inset: 0;
+  z-index: 20;
+  opacity: 0;
+  pointer-events: none;
+}
+.static-layer.on, .static-partial.on { opacity: 1; }
+.static-layer canvas, .static-partial canvas {
+  width: 100%; height: 100%;
+  image-rendering: pixelated;
+}
+
+.ch {
+  position: absolute; inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
+}
+.ch.off { opacity: 0; pointer-events: none; }
+
+.ch-tag {
+  position: absolute;
+  top: 10px; right: 12px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: rgba(255,255,255,0.18);
+  z-index: 15;
+}
+
+/* ───────────── CH1 ───────────── */
+.ch1 { background: radial-gradient(ellipse at center bottom, #100800 0%, var(--screen-black) 100%); }
+.ch1-label {
+  font-family: 'Silkscreen', monospace;
+  font-size: 13px;
+  color: rgba(255,170,0,0.55);
+  letter-spacing: 4px;
+  margin-bottom: 18px;
+}
+.ch1-time {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+.ch1-num {
+  font-family: 'Press Start 2P', monospace;
+  font-size: clamp(32px, 6.5vw, 58px);
+  color: var(--crt-orange);
+  text-shadow: 0 0 18px rgba(255,102,0,0.8), 0 0 50px rgba(255,102,0,0.3);
+}
+.ch1-unit {
+  font-family: 'VT323', monospace;
+  font-size: 19px;
+  color: rgba(255,170,0,0.35);
+  margin: 0 5px 0 1px;
+}
+.ch1-sep {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 26px;
+  color: rgba(255,102,0,0.25);
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink { 50% { opacity:0; } }
+.ch1-bar-wrap { width: 72%; margin-top: 26px; }
+.ch1-bar-info {
+  display: flex; justify-content: space-between;
+  font-size: 14px; color: rgba(255,170,0,0.35); margin-bottom: 5px;
+}
+.ch1-track {
+  width: 100%; height: 5px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,102,0,0.18);
+}
+.ch1-fill {
+  height: 100%;
+  background: var(--crt-orange);
+  box-shadow: 0 0 12px rgba(255,102,0,0.6);
+  transition: width 1s linear;
+}
+
+/* ───────────── CH2 ───────────── */
+.ch2 { background: radial-gradient(ellipse at center, #000c06 0%, var(--screen-black) 100%); }
+.ch2-title {
+  font-family: 'Silkscreen', monospace;
+  font-size: 13px;
+  color: rgba(68,255,68,0.55);
+  letter-spacing: 3px;
+  margin-bottom: 18px;
+}
+.ch2-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 32px;
+  width: 84%;
+  justify-items: center;
+  text-align: center;
+}
+.ch2-grid > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.s-usd-row {
+  text-align: center;
+  margin-top: 20px;
+}
+.s-usd {
+  font-family: 'Press Start 2P', monospace;
+  font-size: clamp(18px, 4.5vw, 32px);
+  color: var(--crt-green);
+  text-shadow: 0 0 16px rgba(68,255,68,0.5), 0 0 32px rgba(68,255,68,0.2);
+}
+.s-usd-label {
+  font-family: 'Silkscreen', monospace;
+  font-size: 8px;
+  color: rgba(68,255,68,0.25);
+  letter-spacing: 2px;
+  margin-top: 6px;
+}
+.s-label {
+  font-family: 'Silkscreen', monospace;
+  font-size: 9px;
+  color: rgba(68,255,68,0.45);
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+.s-val {
+  font-family: 'Press Start 2P', monospace;
+  font-size: clamp(15px, 3.1vw, 24px);
+  text-shadow: 0 0 12px currentColor, 0 0 24px currentColor;
+  line-height: 1.3;
+}
+.s-val.orange { color: var(--crt-orange); }
+.s-val.green  { color: var(--crt-green); }
+.s-val.amber  { color: var(--crt-amber); }
+.s-sub { font-size: 13px; color: rgba(255,255,255,0.15); margin-top: 3px; }
+
+/* ───────────── CH3 ───────────── */
+.ch3 { background: radial-gradient(ellipse at center, #08000c 0%, var(--screen-black) 100%); }
+.ch3-title {
+  font-family: 'Silkscreen', monospace;
+  font-size: 13px;
+  color: rgba(255,170,0,0.55);
+  letter-spacing: 3px;
+  margin-bottom: 14px;
+}
+.ch3-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 4px;
+  width: 80%;
+}
+.g-cell {
+  aspect-ratio: 1;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.g-cell.on {
+  background: var(--crt-orange);
+  border-color: rgba(255,102,0,0.6);
+  box-shadow: 0 0 6px rgba(255,102,0,0.45);
+}
+.g-cell.now {
+  background: var(--crt-amber);
+  border-color: rgba(255,170,0,0.6);
+  animation: cellP 1.5s ease-in-out infinite;
+}
+@keyframes cellP { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+.ch3-info {
+  display: flex; justify-content: space-between; width: 80%;
+  margin-top: 10px; font-size: 15px; color: rgba(255,170,0,0.35);
+}
+
+/* ───────────── CH4 ───────────── */
+.ch4 { padding: 0 !important; background: var(--screen-black); }
+.ch4 iframe { width: 100%; height: 100%; border: none; filter: saturate(0.85) contrast(1.15) brightness(0.95); }
+
+/* CONTROL PANEL */
+.ctrl {
+  position: relative;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.ctrl-disp {
+  background: linear-gradient(180deg, #111, #0a0a0a);
+  border: 3px solid #444;
+  border-radius: 5px;
+  padding: 6px 14px;
+  width: 85px;
+  text-align: center;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.08);
+}
+.ctrl-disp-num {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 18px;
+  color: #ff4400;
+  text-shadow: 0 0 10px rgba(255,68,0,0.7);
+}
+.ctrl-ch-name {
+  font-family: 'VT323', monospace;
+  font-size: 14px;
+  color: #888;
+  text-align: center;
+  min-height: 18px;
+}
+
+.knob-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.knob-lbl {
+  font-family: 'Silkscreen', monospace;
+  font-size: 7px;
+  color: rgba(0,0,0,0.3);
+  letter-spacing: 1px;
+}
+.knob {
+  pointer-events: auto;
+  position: relative;
+  z-index: 50;
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 34%, #888 0%, #555 40%, #333 80%, #222 100%);
+  border: 3px solid rgba(0,0,0,0.3);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35), inset 0 2px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(0,0,0,0.3);
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.knob:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.35), inset 0 2px 0 rgba(255,255,255,0.2), 0 0 0 2px rgba(255,102,0,0.25); }
+.knob:active { transform: scale(0.94); }
+.knob::after {
+  content: '';
+  position: absolute;
+  top: 7px; left: 50%;
+  transform: translateX(-50%);
+  width: 3px; height: 14px;
+  background: linear-gradient(180deg, #ccc, #888);
+  border-radius: 2px;
+}
+
+.ctrl-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  margin-top: 4px;
+}
+.ctrl-btn {
+  pointer-events: auto;
+  position: relative;
+  z-index: 50;
+  width: 100%;
+  padding: 7px 4px;
+  background: linear-gradient(180deg, #666, #444);
+  border: 2px solid #555;
+  border-radius: 3px;
+  color: #bbb;
+  font-family: 'Silkscreen', monospace;
+  font-size: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.ctrl-btn:hover { background: linear-gradient(180deg, #777, #555); }
+.ctrl-btn:active { transform: translateY(1px); }
+.ctrl-btn.on {
+  background: linear-gradient(180deg, #ff5500, #cc3300);
+  border-color: #ff7700;
+  color: white;
+  box-shadow: 0 2px 10px rgba(255,119,0,0.4);
+}
+
+.ctrl-speaker {
+  margin-top: auto;
+  width: 88%;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.spk { height: 2px; background: linear-gradient(90deg, transparent 5%, rgba(0,0,0,0.18) 20%, rgba(0,0,0,0.18) 80%, transparent 95%); border-radius: 1px; }
+
+.ctrl-led-row {
+  display: flex; align-items: center; gap: 6px; margin-top: 6px;
+}
+.ctrl-led {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #55ff55;
+  box-shadow: 0 0 8px rgba(85,255,85,0.7), 0 0 14px rgba(85,255,85,0.3);
+  animation: ledP 4s ease-in-out infinite;
+}
+@keyframes ledP { 0%,88%,100% { opacity:1; } 92% { opacity:0.2; } }
+.ctrl-led-txt {
+  font-family: 'Silkscreen', monospace;
+  font-size: 7px; color: rgba(0,0,0,0.25); letter-spacing: 1px;
+}
+
+.toast {
+  position: fixed; top: 14px; left: 50%;
+  transform: translateX(-50%) translateY(-50px);
+  padding: 6px 16px;
+  background: #0a0a0a; color: white;
+  font-family: 'VT323', monospace; font-size: 16px;
+  border-radius: 4px; z-index: 10000;
+  transition: transform 0.25s; pointer-events: none;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+.foot {
+  width: 100%; text-align: center; padding: 20px;
+  font-family: 'VT323', monospace; font-size: 14px; color: #ccc;
+}
+.foot a { color: #999; text-decoration: none; }
+.foot a:hover { color: var(--crt-orange); }
+
+/* RESPONSIVE */
+@media (max-width: 720px) {
+  .tv-3d { max-width: 680px; }
+  .tv-body { grid-template-columns: 1fr 120px; padding: 14px; gap: 12px; border-radius: 18px 18px 12px 12px; }
+  .ch1-num { font-size: 26px !important; }
+  .s-val { font-size: 14px !important; }
+}
+@media (max-width: 480px) {
+  .tv-3d { max-width: 520px; }
+  .tv-body { grid-template-columns: 1fr 95px; padding: 10px; gap: 8px; }
+  .ch1-num { font-size: 22px !important; }
+}
+</style>
+</head>
+<body>
+
+<div id="toast" class="toast">COPIED</div>
+
+<div class="topbar">
+  <div class="logo-mark"><span>BURNR</span></div>
+  <span class="topbar-title">Burn Tracker</span>
+</div>
+
+<div class="tv-area">
+  <div class="tv-3d">
+    <div class="tv-body">
+
+      <div class="screen-outer">
+        <div class="screen-glass" id="screen">
+          <div class="fx-scanlines"></div>
+          <div class="fx-rgb"></div>
+          <div class="fx-vignette"></div>
+          <div class="fx-reflection"></div>
+          <div class="fx-roll"></div>
+          <div class="fx-glow"></div>
+          <div class="fx-flicker"></div>
+          <div class="fx-glitch" id="glitch-layer"></div>
+
+          <div class="static-layer" id="static-full">
+            <canvas id="cv-full"></canvas>
+          </div>
+
+          <div class="static-partial" id="static-part">
+            <canvas id="cv-part"></canvas>
+          </div>
+
+          <div class="ch-tag" id="ch-tag">CH-01</div>
+
+          <div class="ch ch1" id="ch-1">
+            <div class="ch1-label">NEXT BURN IN</div>
+            <div class="ch1-time">
+              <span class="ch1-num" id="cd-h">--</span><span class="ch1-unit">H</span>
+              <span class="ch1-sep">:</span>
+              <span class="ch1-num" id="cd-m">--</span><span class="ch1-unit">M</span>
+              <span class="ch1-sep">:</span>
+              <span class="ch1-num" id="cd-s">--</span><span class="ch1-unit">S</span>
+            </div>
+            <div class="ch1-bar-wrap">
+              <div class="ch1-bar-info"><span>CYCLE</span><span id="cd-pct">0%</span></div>
+              <div class="ch1-track"><div class="ch1-fill" id="cd-fill" style="width:0%"></div></div>
+            </div>
+          </div>
+
+          <div class="ch ch2 off" id="ch-2">
+            <div class="ch2-title">BURN STATISTICS</div>
+            <div class="ch2-grid">
+              <div>
+                <div class="s-label">TOTAL BURNED</div>
+                <div class="s-val orange" id="s-total">0</div>
+                <div class="s-sub">$BURN</div>
+              </div>
+              <div>
+                <div class="s-label">BURN COUNT</div>
+                <div class="s-val green" id="s-count">0</div>
+                <div class="s-sub">EXECUTIONS</div>
+              </div>
+            </div>
+            <div class="s-usd-row">
+              <div class="s-usd" id="s-usd">$0.00</div>
+              <div class="s-usd-label">TOTAL BURNED VALUE</div>
+            </div>
+          </div>
+
+          <div class="ch ch3 off" id="ch-3">
+            <div class="ch3-title">60 DAY BURN GRID</div>
+            <div class="ch3-grid" id="burn-grid"></div>
+            <div class="ch3-info"><span id="g-done">0/60</span><span id="g-pct">0%</span></div>
+          </div>
+
+          <div class="ch ch4 off" id="ch-4">
+            <iframe src="https://dexscreener.com/base/0xEe3574224ffd91E4C87d66E4681fD7876b10dba3?embed=1&theme=dark&trades=0&info=0" loading="lazy"></iframe>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="ctrl">
+        <div class="ctrl-disp">
+          <div class="ctrl-disp-num" id="c-num">01</div>
+        </div>
+        <div class="ctrl-ch-name" id="c-name">TIMER</div>
+
+        <div class="knob-wrap">
+          <div class="knob" onclick="sw(1)"></div>
+          <div class="knob-lbl">CH +</div>
+        </div>
+        <div class="knob-wrap">
+          <div class="knob" onclick="sw(-1)"></div>
+          <div class="knob-lbl">CH -</div>
+        </div>
+
+        <div class="ctrl-btns">
+          <button class="ctrl-btn on" data-c="1" onclick="go(1)">TIMER</button>
+          <button class="ctrl-btn" data-c="2" onclick="go(2)">STATS</button>
+          <button class="ctrl-btn" data-c="3" onclick="go(3)">GRID</button>
+          <button class="ctrl-btn" data-c="4" onclick="go(4)">CHART</button>
+        </div>
+
+        <div class="ctrl-speaker">
+          <div class="spk"></div><div class="spk"></div><div class="spk"></div>
+          <div class="spk"></div><div class="spk"></div><div class="spk"></div>
+          <div class="spk"></div><div class="spk"></div><div class="spk"></div>
+        </div>
+
+        <div class="ctrl-led-row">
+          <div class="ctrl-led"></div>
+          <div class="ctrl-led-txt">POWER</div>
+        </div>
+      </div>
+
+      <div class="tv-feet">
+        <div class="tv-foot"></div>
+        <div class="tv-foot"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<footer class="foot">
+  BURNR Burn Tracker · <a href="https://x.com/marjohety" target="_blank" rel="noopener">Created by Morphey</a>
+  <br>CA: <span onclick="copyCA()" style="cursor:pointer;color:#ff7700;">0xEe3574224ffd91E4C87d66E4681fD7876b10dba3</span>
+</footer>
+
+<script>
+const C = {
+  ca: '0xEe3574224ffd91E4C87d66E4681fD7876b10dba3',
+  start: new Date('2026-02-18T00:00:00Z'),
+  total: 60, iv: 86400000,
+  api: 'https://api.basescan.org/api', dec: 18,
+};
+const NAMES = ['','TIMER','STATS','GRID','CHART'];
+let cur = 1;
+
+const cvFull = document.getElementById('cv-full');
+const ctxFull = cvFull.getContext('2d');
+const cvPart = document.getElementById('cv-part');
+const ctxPart = cvPart.getContext('2d');
+let animFull = null, animPart = null;
+
+function sizeCanvas(cv) {
+  const r = cv.parentElement.getBoundingClientRect();
+  cv.width = Math.floor(r.width / 2.5);
+  cv.height = Math.floor(r.height / 2.5);
+}
+
+function drawNoise(ctx, w, h) {
+  const img = ctx.createImageData(w, h);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const v = Math.random() * 255;
+    d[i] = d[i+1] = d[i+2] = v;
+    d[i+3] = 190 + Math.random() * 65;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function loopNoise(ctx, cv) {
+  drawNoise(ctx, cv.width, cv.height);
+  return requestAnimationFrame(() => loopNoise(ctx, cv));
+}
+
+function startFull() {
+  sizeCanvas(cvFull);
+  document.getElementById('static-full').classList.add('on');
+  animFull = loopNoise(ctxFull, cvFull);
+}
+function stopFull() {
+  document.getElementById('static-full').classList.remove('on');
+  if (animFull) cancelAnimationFrame(animFull);
+  animFull = null;
+}
+
+function doPartialGlitch() {
+  const el = document.getElementById('static-part');
+  const screen = document.getElementById('screen');
+  const sh = screen.getBoundingClientRect().height;
+  const h = 12 + Math.random() * 65;
+  const top = Math.random() * (sh - h);
+  el.style.top = top + 'px';
+  el.style.height = h + 'px';
+  el.style.left = '0';
+  el.style.right = '0';
+
+  sizeCanvas(cvPart);
+  el.classList.add('on');
+  animPart = loopNoise(ctxPart, cvPart);
+
+  setTimeout(() => {
+    el.classList.remove('on');
+    if (animPart) cancelAnimationFrame(animPart);
+    animPart = null;
+  }, 70 + Math.random() * 280);
+}
+
+function doGlitchBars() {
+  const layer = document.getElementById('glitch-layer');
+  layer.innerHTML = '';
+  const count = 2 + Math.floor(Math.random() * 7);
+  for (let i = 0; i < count; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'glitch-bar';
+    bar.style.top = (Math.random() * 100) + '%';
+    bar.style.height = (1 + Math.random() * 5) + 'px';
+    bar.style.transform = `translateX(${(Math.random()-0.5) * 28}px)`;
+    bar.style.opacity = 0.15 + Math.random() * 0.25;
+    layer.appendChild(bar);
+  }
+  layer.classList.add('active');
+  setTimeout(() => { layer.classList.remove('active'); layer.innerHTML = ''; }, 45 + Math.random() * 180);
+}
+
+function doScreenShift() {
+  const scr = document.getElementById('screen');
+  const x = (Math.random() - 0.5) * 13;
+  const y = (Math.random() - 0.5) * 7;
+  scr.style.transition = 'none';
+  scr.style.transform = `translate(${x}px, ${y}px)`;
+  setTimeout(() => {
+    scr.style.transition = 'transform 75ms linear';
+    scr.style.transform = 'translate(0,0)';
+  }, 12);
+}
+
+function scheduleGlitch() {
+  const delay = 1400 + Math.random() * 5200;
+  setTimeout(() => {
+    const type = Math.random();
+    if (type < 0.35) doPartialGlitch();
+    else if (type < 0.65) doGlitchBars();
+    else if (type < 0.82) doScreenShift();
+    else {
+      doPartialGlitch();
+      setTimeout(doGlitchBars, 35);
+      setTimeout(doScreenShift, 70);
+    }
+    scheduleGlitch();
+  }, delay);
+}
+
+function sw(d) {
+  let n = cur + d;
+  if (n < 1) n = 4;
+  if (n > 4) n = 1;
+  go(n);
+}
+
+function go(ch) {
+  if (ch === cur) return;
+
+  startFull();
+  document.getElementById('ch-' + cur).classList.add('off');
+
+  setTimeout(() => {
+    document.getElementById('ch-' + ch).classList.remove('off');
+    setTimeout(stopFull, 220);
+  }, 300);
+
+  cur = ch;
+
+  document.getElementById('c-num').textContent = String(ch).padStart(2,'0');
+  document.getElementById('c-name').textContent = NAMES[ch];
+  document.getElementById('ch-tag').textContent = 'CH-' + String(ch).padStart(2,'0');
+
+  document.querySelectorAll('.ctrl-btn').forEach(b => {
+    b.classList.toggle('on', parseInt(b.dataset.c) === ch);
+  });
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key==='ArrowRight'||e.key==='ArrowUp') sw(1);
+  if (e.key==='ArrowLeft'||e.key==='ArrowDown') sw(-1);
+  if (e.key>='1'&&e.key<='4') go(parseInt(e.key));
+});
+
+function tick() {
+  const now = Date.now(), el = now - C.start.getTime();
+  if (el < 0) { setT(C.start.getTime()-now); setB(0); return; }
+  const cy = el % C.iv;
+  setT(C.iv - cy);
+  setB(cy / C.iv);
+}
+function setT(ms) {
+  const s = Math.max(0, Math.floor(ms/1000));
+  document.getElementById('cd-h').textContent = String(Math.floor(s/3600)).padStart(2,'0');
+  document.getElementById('cd-m').textContent = String(Math.floor((s%3600)/60)).padStart(2,'0');
+  document.getElementById('cd-s').textContent = String(s%60).padStart(2,'0');
+}
+function setB(p) {
+  document.getElementById('cd-fill').style.width = (p*100).toFixed(1)+'%';
+  document.getElementById('cd-pct').textContent = (p*100).toFixed(1)+'%';
+}
+
+let burnPrice = 0;
+let lastTotal = 0;
+
+// Pre-existing burn before the 60-day challenge started
+const PRE_BURNS = [
+  { h: '0xe0be283959c472c1e55b16334fbc5e61100100bd28f8c0a9eab155f65b7f6c0e', a: 1594860302.799945876375393251, ts: new Date('2026-02-16T16:45:19Z') }
+];
+
+async function fetchPrice() {
+  try {
+    const r = await fetch('https://api.dexscreener.com/latest/dex/tokens/0xEe3574224ffd91E4C87d66E4681fD7876b10dba3');
+    const d = await r.json();
+    if (d.pairs && d.pairs.length > 0) {
+      burnPrice = parseFloat(d.pairs[0].priceUsd) || 0;
+      // Update USD display immediately
+      if (lastTotal > 0) {
+        document.getElementById('s-usd').textContent = '$' + fmtUsd(lastTotal * burnPrice);
+      }
+    }
+  } catch(e) { console.log('Price fetch failed'); }
+}
+
+function upd(burns) {
+  // Merge pre-burns with on-chain burns (avoid duplicates by hash)
+  const onChainHashes = new Set(burns.map(b => b.h));
+  const allBurns = [...burns];
+  PRE_BURNS.forEach(pb => {
+    if (!onChainHashes.has(pb.h)) allBurns.push(pb);
+  });
+
+  let tot = 0; allBurns.forEach(b => tot += b.a);
+  lastTotal = tot;
+  document.getElementById('s-total').textContent = fmt(tot);
+  // BURN COUNT = only 60-day challenge burns (not pre-burns)
+  document.getElementById('s-count').textContent = burns.length;
+
+  const usdVal = tot * burnPrice;
+  document.getElementById('s-usd').textContent = '$' + fmtUsd(usdVal);
+
+  mkGrid(Math.max(0, Math.floor((Date.now()-C.start.getTime())/C.iv)), burns.length);
+}
+function fmt(n) {
+  if (n>=1e9) return (n/1e9).toFixed(2)+'B';
+  if (n>=1e6) return (n/1e6).toFixed(2)+'M';
+  if (n>=1e3) return (n/1e3).toFixed(2)+'K';
+  return n===0?'0':n.toFixed(2);
+}
+function fmtUsd(n) {
+  if (n>=1e6) return (n/1e6).toFixed(2)+'M';
+  if (n>=1e3) return (n/1e3).toFixed(2)+'K';
+  return n.toFixed(2);
+}
+function mkGrid(exp, act) {
+  const g = document.getElementById('burn-grid');
+  g.innerHTML = '';
+  const d = Math.min(act, C.total);
+  for (let i=0;i<C.total;i++) {
+    const c = document.createElement('div');
+    c.className = 'g-cell';
+    if (i<d) c.classList.add('on');
+    else if (i===d&&d<C.total) c.classList.add('now');
+    g.appendChild(c);
+  }
+  document.getElementById('g-done').textContent = d+'/'+C.total;
+  document.getElementById('g-pct').textContent = ((d/C.total)*100).toFixed(0)+'%';
+}
+
+async function fetchB() {
+  try {
+    const r = await fetch(`${C.api}?module=account&action=tokentx&address=0x000000000000000000000000000000000000dEaD&contractaddress=${C.ca}&sort=desc&page=1&offset=100`);
+    const d = await r.json();
+    if (d.status==='1'&&d.result?.length)
+      return d.result.map(t=>({h:t.hash, a:parseFloat(t.value)/Math.pow(10,parseInt(t.tokenDecimal||C.dec)), ts:new Date(parseInt(t.timeStamp)*1000)}));
+    return [];
+  } catch(e) { return []; }
+}
+
+function copyCA() {
+  navigator.clipboard.writeText(C.ca).then(() => {
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1400);
+  });
+}
+
+async function init() {
+  tick(); setInterval(tick, 1000);
+  mkGrid(0, 0);
+  await fetchPrice();
+  const b = await fetchB();
+  upd(b);
+
+  // Price refresh every 30s
+  setInterval(fetchPrice, 30000);
+
+  // Burn data: check how close we are to next burn
+  // If >2h away, check every 30min. If <2h, check every 60s.
+  setInterval(async () => {
+    const now = Date.now();
+    const elapsed = now - C.start.getTime();
+    if (elapsed < 0) return; // not started yet
+    const cycleElapsed = elapsed % C.iv;
+    const remaining = C.iv - cycleElapsed;
+    const twoHours = 2 * 60 * 60 * 1000;
+
+    // Only fetch if within 2 hours of burn OR just after a burn (first 10 min)
+    if (remaining < twoHours || cycleElapsed < 600000) {
+      upd(await fetchB());
+    }
+  }, 60000);
+
+  // Also do a slower background check every 30 min regardless
+  setInterval(async () => { upd(await fetchB()); }, 1800000);
+
+  scheduleGlitch();
+  window.addEventListener('resize', () => { sizeCanvas(cvFull); sizeCanvas(cvPart); });
+}
+init();
+</script>
+</body>
+</html>
