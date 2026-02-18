@@ -666,7 +666,7 @@ body {
 </div>
 
 <footer class="foot">
-  BURNR Burn Tracker · <a href="https://x.com/marjohety" target="_blank" rel="noopener">Created by Morphey</a>
+  BURNR Burn Tracker · <a href="https://bankr.bot/terminal" target="_blank" rel="noopener">Powered by BankrBot</a>
   <br>CA: <span onclick="copyCA()" style="cursor:pointer;color:#ff7700;">0xEe3574224ffd91E4C87d66E4681fD7876b10dba3</span>
 </footer>
 
@@ -844,7 +844,12 @@ let lastTotal = 0;
 
 // Pre-existing burn before the 60-day challenge started
 const PRE_BURNS = [
-  { h: '0xe0be283959c472c1e55b16334fbc5e61100100bd28f8c0a9eab155f65b7f6c0e', a: 1594860302.799945876375393251, ts: new Date('2026-02-16T16:45:19Z') }
+  { h: '0xe0be283959c472c1e55b16334fbc5e61100100bd28f8c0a9eab155f65b7f6c0e', a: 1594860302.799945876375393251, ts: new Date('2026-02-16T16:45:19Z'), challenge: false },
+];
+
+// 60-day challenge burns (hardcoded as backup if API misses them)
+const CHALLENGE_BURNS = [
+  { h: '0xb166f23dcbc9838f9225ea20090e40f30b57c7eaf5b0f6850f337aaf1e22a999', a: 1547129817.105006968206102328, ts: new Date('2026-02-18T00:02:05Z'), challenge: true },
 ];
 
 async function fetchPrice() {
@@ -862,23 +867,29 @@ async function fetchPrice() {
 }
 
 function upd(burns) {
-  // Merge pre-burns with on-chain burns (avoid duplicates by hash)
-  const onChainHashes = new Set(burns.map(b => b.h));
-  const allBurns = [...burns];
-  PRE_BURNS.forEach(pb => {
-    if (!onChainHashes.has(pb.h)) allBurns.push(pb);
-  });
+  // Collect all known burn hashes from API
+  const apiHashes = new Set(burns.map(b => b.h));
 
+  // Build full burn list: API burns + hardcoded ones not in API
+  const allBurns = [...burns];
+  PRE_BURNS.forEach(pb => { if (!apiHashes.has(pb.h)) allBurns.push(pb); });
+  CHALLENGE_BURNS.forEach(cb => { if (!apiHashes.has(cb.h)) allBurns.push(cb); });
+
+  // Total burned = everything
   let tot = 0; allBurns.forEach(b => tot += b.a);
   lastTotal = tot;
   document.getElementById('s-total').textContent = fmt(tot);
-  // BURN COUNT = only 60-day challenge burns (not pre-burns)
-  document.getElementById('s-count').textContent = burns.length;
+
+  // Challenge burn count = API burns that happened after challenge start + hardcoded challenge burns not in API
+  const challengeStart = C.start.getTime();
+  let challengeCount = burns.filter(b => b.ts.getTime() >= challengeStart).length;
+  CHALLENGE_BURNS.forEach(cb => { if (!apiHashes.has(cb.h)) challengeCount++; });
+  document.getElementById('s-count').textContent = challengeCount;
 
   const usdVal = tot * burnPrice;
   document.getElementById('s-usd').textContent = '$' + fmtUsd(usdVal);
 
-  mkGrid(Math.max(0, Math.floor((Date.now()-C.start.getTime())/C.iv)), burns.length);
+  mkGrid(Math.max(0, Math.floor((Date.now()-C.start.getTime())/C.iv)), challengeCount);
 }
 function fmt(n) {
   if (n>=1e9) return (n/1e9).toFixed(2)+'B';
